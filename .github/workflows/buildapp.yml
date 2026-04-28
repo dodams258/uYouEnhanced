@@ -146,13 +146,8 @@ jobs:
           sed -i '' "1s#.*#export TARGET = iphone:clang:${{ inputs.sdk_version }}:14.0#g" Makefile # Modify the SDK version
 
           if [ -d "Payload/YouTube.app/PlugIns" ]; then
-            for ext in Payload/YouTube.app/PlugIns/*.appex; do
-              ext_name=$(basename "$ext" .appex)
-              ext_path="$ext/Info.plist"
-              # 기존 확장 프로그램 ID를 [새로운 부모 ID].[기존 이름] 형식으로 변경
-              /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${{ env.BUNDLE_ID }}.$ext_name" "$ext_path"
-              echo "==> Updated Extension ID: $ext_name"
-            done
+            rm -rf Payload/YouTube.app/PlugIns
+            echo "==> Removed all extensions to fix install errors."
           fi
           
           
