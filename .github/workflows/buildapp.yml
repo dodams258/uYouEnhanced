@@ -141,20 +141,29 @@ jobs:
         id: build_package
         run: |
           cd ${{ github.workspace }}/main
-          sed -i '' "30s#.*#BUNDLE_ID = ${{ env.BUNDLE_ID }}#g" Makefile                          # Modify the bundle ID
-          sed -i '' "29s#.*#DISPLAY_NAME = ${{ env.APP_NAME }}#g" Makefile                        # Modify the app name
-          sed -i '' "1s#.*#export TARGET = iphone:clang:${{ inputs.sdk_version }}:14.0#g" Makefile # Modify the SDK version
 
-          if [ -d "Payload/YouTube.app/PlugIns" ]; then
-            rm -rf Payload/YouTube.app/PlugIns
-            echo "==> Removed all extensions to fix install errors."
-          fi
+
+          # 1. Makefile 강제 수정 (Bundle ID에 잡다한 거 안 붙게 고정)
+          sed -i '' "30s#.*#BUNDLE_ID = ${{ inputs.bundle_id }}#g" Makefile
+          sed -i '' "29s#.*#DISPLAY_NAME = ${{ inputs.app_name }}#g" Makefile
+          sed -i '' "1s#.*#export TARGET = iphone:clang:${{ inputs.sdk_version }}:14.0#g" Makefile
           
+          # 2. 물리적 삭제 (PlugIns 폴더 및 기타 찌꺼기 제거)
+          rm -rf Payload/YouTube.app/PlugIns
+          rm -rf Payload/YouTube.app/Watch # 애플워치 앱이 있다면 이것도 삭제
+          echo "==> Physically removed all extensions and watch apps."
+
+          # 3. 메타데이터 정리 (본체 Info.plist에서 확장 프로그램 관련 흔적 제거)
+          # 가끔 시스템이 지워진 폴더를 찾지 않도록 방지합니다.
+          /usr/libexec/PlistBuddy -c "Delete :NSExtension" "Payload/YouTube.app/Info.plist" || true
           
+          # 4. 빌드 시작 (포장 단계)
+          # IPA=Payload/YouTube.app 옵션을 써서 우리가 수정한 폴더를 그대로 패키징하게 합니다.
           make package THEOS_PACKAGE_SCHEME=rootless IPA=Payload/YouTube.app FINALPACKAGE=1
+          
           echo "package=$(ls -t packages | head -n1)" >>$GITHUB_OUTPUT
           echo -e "==> \033[1mSHASUM256: $(shasum -a 256 packages/*.ipa | cut -f1 -d' ')\033[0m"
-          echo -e "==> \033[1mBundle ID: ${{ env.BUNDLE_ID }}\033[0m"
+          echo -e "==> \033[1mFinal Bundle ID: ${{ inputs.bundle_id }}\033[0m"
 
         env:
           THEOS: ${{ github.workspace }}/theos
